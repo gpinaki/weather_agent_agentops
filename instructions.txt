@@ -1,0 +1,110 @@
+1. First, let's create the directory structure using terminal commands:
+
+# Create main project directory
+mkdir travel_planner && cd travel_planner
+
+# Create src directory structure
+mkdir -p src/travel_planner/agents src/travel_planner/schemas src/travel_planner/utils tests/test_agents
+touch src/travel_planner/__init__.py
+touch src/travel_planner/agents/__init__.py
+touch src/travel_planner/schemas/__init__.py
+touch src/travel_planner/utils/__init__.py
+touch src/travel_planner/config.py
+touch src/travel_planner/constants.py
+touch src/travel_planner/__main__.py
+
+# Create agent files
+touch src/travel_planner/agents/base.py
+touch src/travel_planner/agents/weather_agent.py
+touch src/travel_planner/agents/flight_agent.py
+touch src/travel_planner/agents/travel_planner_agent.py
+
+# Create schema and utility files
+touch src/travel_planner/schemas/models.py
+touch src/travel_planner/utils/logger.py
+
+# Create test files
+touch tests/__init__.py
+touch tests/conftest.py
+touch tests/test_agents/__init__.py
+touch tests/test_agents/test_weather_agent.py
+touch tests/test_agents/test_flight_agent.py
+touch tests/test_agents/test_travel_planner_agent.py
+
+# Create project files
+touch requirements.txt
+touch setup.py
+touch README.md
+touch .env.example
+touch .gitignore
+
+2. set up python env
+# Install Python 3.10 using Homebrew if not already installed
+brew install python@3.10
+
+# Create virtual environment
+python3.10 -m venv weather-agent
+
+# Activate virtual environment
+source weather-agent/bin/activate
+
+# Upgrade pip
+pip install --upgrade pip
+
+3. set requirement.txt
+
+4. Set up GitHub repository:
+# Initialize git repository
+git init
+
+# Create .gitignore
+cat << EOF > .gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+weather-agent/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.venv
+ENV/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+EOF
+
+# Create initial commit
+git add .
+git commit -m "Initial commit"
+
+
+

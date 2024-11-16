@@ -1,0 +1,12 @@
+openai>=1.0.0
+requests>=2.31.0
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+agentops>=0.1.0
+pytest>=7.4.0
+structlog>=24.1.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+black>=24.1.0
+isort>=5.13.0
+flake8>=7.0.0
