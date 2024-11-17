@@ -111,8 +111,8 @@ sequenceDiagram
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/gpinaki/travel-planner-pro.git
-cd travel-planner-pro
+git clone https://github.com/gpinaki/weather_agent_agentops.git
+cd tweather_agent_agentops
 ```
 
 2. Create and activate virtual environment:
@@ -184,12 +184,6 @@ travel_planner/
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## Getting API Keys 🔑
 
 1. **OpenAI API Key**:
@@ -224,4 +218,4 @@ This project was developed by Pinaki Guha, with supplementary support from AI-ba
 
 Pinaki Guha - [pinaki.guha@gmail.com](mailto:pinaki.guha@gmail.com)
 
-Project Link: [https://github.com/gpinaki/travel-planner-pro](https://github.com/gpinaki/travel-planner-pro)
+Project Link: [https://github.com/gpinaki/weather_agent_agentops](https://github.com/gpinaki/weather_agent_agentops)
