@@ -106,5 +106,110 @@ EOF
 git add .
 git commit -m "Initial commit"
 
+Now, create a new repository on GitHub and link it:
+
+# Replace YOUR_USERNAME and YOUR_REPO with your GitHub details
+git remote add origin https://github.com/gpinaki/weather_agent_agentops.git
+git branch -M main
+git push -u origin main
+
+Additional set up 
+
+Create .env file:
+
+OPENAI_API_KEY=your_openai_api_key
+WEATHER_API_KEY=your_weather_api_key
+AGENTOPS_API_KEY=your_agentops_api_key
+ENVIRONMENT=development
+
+Create setup.py:
+
+Create .vscode/settings.json
+
+mkdir .vscode
+touch .vscode/settings.json
+
+Add the following content:
+
+Install development dependencies:
+pip install -e ".[dev]"
+
+Now you have a fully configured development environment! To verify everything is working:
+
+# Run formatters
+black src tests
+isort src tests
+
+# Run linter
+flake8 src tests
+
+# Run tests
+pytest tests -v
+
+I'll show you how to add a Streamlit UI to the project, focusing only on the new and modified files.
+
+First, update requirements.txt to add Streamlit:
+Create a new directory for the UI:
+
+mkdir -p src/travel_planner/ui
+touch src/travel_planner/ui/__init__.py
+touch src/travel_planner/ui/app.py
+
+# Try running the application again
+python -m travel_planner
 
 
+# Make sure you're in your project directory and virtual environment is activated
+cd travel_planner
+source weather-agent/bin/activate
+
+# Run the application
+python -m travel_planner
+
+Usage Guide
+
+# Weather Travel Planner Usage Guide
+
+1. **Starting the Application**
+   ```bash
+   streamlit run src/travel_planner/ui/app.py
+   ```
+
+2. **Using the Interface**
+   - Enter origin city (e.g., "San Francisco")
+   - Enter destination city (e.g., "New York")
+   - Select travel date using the date picker
+   - Click "Get Travel Information"
+
+3. **Viewing Results**
+   - Weather information will appear on the left
+   - Flight options will appear on the right
+   - Each flight option can be expanded for more details
+
+4. **Example Inputs**
+   Origin cities:
+   - San Francisco
+   - Los Angeles
+   - Chicago
+   - Boston
+
+   Destination cities:
+   - New York
+   - Seattle
+   - Miami
+   - Denver
+
+5. **Tips**
+   - Use clear city names (avoid abbreviations)
+   - Select dates within the next year
+   - Allow a few seconds for results to load
+   - Check both weather and flight sections for complete information
+
+   # 1. Start Streamlit UI (recommended)
+streamlit run src/travel_planner/ui/app.py
+
+# 2. Or use command line version
+python -m travel_planner
+
+# 3. Or run example usage
+python example_usage.py
