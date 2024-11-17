@@ -107,78 +107,11 @@ sequenceDiagram
    - Response parsing
    - Error handling
 
-[Rest of the installation and usage instructions remain the same...]
-
-## System Components 🔧
-
-### 1. Agent Layer
-```python
-class BaseAgent(ABC):
-    """Base agent interface"""
-    @abstractmethod
-    async def execute(self, *args, **kwargs):
-        pass
-
-class TravelPlannerAgent(BaseAgent):
-    """Orchestrator agent"""
-    async def execute(self):
-        # Coordinate other agents
-        # Handle errors
-        # Monitor performance
-```
-
-### 2. Monitoring Layer
-```python
-# Monitor agent interactions
-with monitoring.trace("agent_execution"):
-    result = await agent.execute()
-    monitoring.log_metrics({
-        "response_time": result.duration,
-        "success": result.success
-    })
-```
-
-### 3. Error Handling
-```python
-try:
-    await agent.execute()
-except CityValidationError:
-    # Handle validation errors
-except ServiceError:
-    # Handle service errors
-```
-
-## Use Cases for Learning 📖
-
-1. **Agent System Design**
-   - Study multi-agent architecture
-   - Learn coordination patterns
-   - Understand error propagation
-
-2. **LLM Integration**
-   - Prompt engineering
-   - Response handling
-   - Error management
-
-3. **System Monitoring**
-   - Performance tracking
-   - Error rate monitoring
-   - System health checks
-
-## Future Learning Opportunities 🎓
-
-- [ ] Add more agent types
-- [ ] Implement different coordination patterns
-- [ ] Enhance monitoring capabilities
-- [ ] Add more complex error scenarios
-- [ ] Implement agent memory
-- [ ] Add agent learning capabilities
-
 ## Installation 🛠️
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/travel-planner-pro.git
+git clone https://github.com/gpinaki/travel-planner-pro.git
 cd travel-planner-pro
 ```
 
@@ -207,7 +140,6 @@ cp .env.example .env
 ```bash
 streamlit run streamlit/app.py
 ```
-![Streamlit Interface](path_to_screenshot.png)
 
 ### Command Line Interface
 ```bash
@@ -220,8 +152,8 @@ python -m travel_planner -o "London" -d "Paris" -D 2024-12-01
 # See all options
 python -m travel_planner --help
 ```
-
-For detailed CLI usage, see [USAGE.md](USAGE.md)
+## Usage
+See [USAGE.md](USAGE.md) for detailed usage instructions and examples.
 
 ## Project Structure 📁
 ```
@@ -288,12 +220,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 This project was developed by Pinaki Guha, with supplementary support from AI-based code assistance tools like ChatGPT, Claude, and GitHub Copilot, to streamline specific parts of the development process.
 
-## Support 💪
-
-If you like this project, please give it a ⭐️!
-
 ## Contact 📧
 
-Your Name - [Your Email](mailto:pinaki.guha@gmail.com)
+Pinaki Guha - [pinaki.guha@gmail.com](mailto:pinaki.guha@gmail.com)
 
-Project Link: [https://github.com/yourusername/travel-planner-pro](https://github.com/yourusername/travel-planner-pro)
+Project Link: [https://github.com/gpinaki/travel-planner-pro](https://github.com/gpinaki/travel-planner-pro)
