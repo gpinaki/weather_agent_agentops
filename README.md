@@ -112,7 +112,7 @@ sequenceDiagram
 1. Clone the repository:
 ```bash
 git clone https://github.com/gpinaki/weather_agent_agentops.git
-cd tweather_agent_agentops
+cd weather_agent_agentops
 ```
 
 2. Create and activate virtual environment:
