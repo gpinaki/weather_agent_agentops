@@ -6,18 +6,21 @@ from ..config import get_settings
 from ..utils.logger import logger
 from ..utils.validators import CityValidator
 import json
+from agentops import track_agent
 
+
+@track_agent(name="HotelAgent")
 class HotelAgent(BaseAgent):
     def __init__(self):
         self.settings = get_settings()
         self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         self.city_validator = CityValidator(self.settings.weather_api_key)
-    
+
     async def execute(self, city: str, date: str) -> List[HotelOption]:
         try:
             # Validate city first
             is_valid, validated_city = await self.city_validator.validate_city(city)
-            
+
             if not is_valid:
                 raise ValueError(f"Invalid city: {city}")
 
@@ -53,15 +56,15 @@ class HotelAgent(BaseAgent):
                 ],
                 response_format={"type": "json_object"}
             )
-            
+
             hotel_data = json.loads(response.choices[0].message.content)
-            
+
             if not hotel_data.get("hotels"):
                 logger.info(f"No hotels found for city: {city}")
                 return []
-                
+
             return [HotelOption.from_api_response(hotel) for hotel in hotel_data["hotels"]]
-                
+
         except Exception as e:
             logger.error("hotel_search_error", error=str(e))
             raise

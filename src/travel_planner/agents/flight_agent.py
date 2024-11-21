@@ -6,13 +6,16 @@ from ..config import get_settings
 from ..utils.logger import logger
 from ..utils.validators import CityValidator
 import json
+from agentops import track_agent
 
+
+@track_agent(name="FlightAgent")
 class FlightAgent(BaseAgent):
     def __init__(self):
         self.settings = get_settings()
         self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         self.city_validator = CityValidator(self.settings.weather_api_key)
-    
+
     async def execute(self, origin: str, destination: str, date: str) -> List[FlightOption]:
         try:
             # Validate cities first
@@ -24,7 +27,8 @@ class FlightAgent(BaseAgent):
                 if not origin_valid:
                     error_msg.append(f"Invalid origin city: {origin}")
                 if not dest_valid:
-                    error_msg.append(f"Invalid destination city: {destination}")
+                    error_msg.append(
+                        f"Invalid destination city: {destination}")
                 raise ValueError(" && ".join(error_msg))
 
             # Use validated city names
@@ -59,15 +63,16 @@ class FlightAgent(BaseAgent):
                 ],
                 response_format={"type": "json_object"}
             )
-            
+
             flight_data = json.loads(response.choices[0].message.content)
-            
+
             if not flight_data.get("flights"):
-                logger.info(f"No flights found for route: {origin} to {destination}")
+                logger.info(
+                    f"No flights found for route: {origin} to {destination}")
                 return []
-                
+
             return [FlightOption(**flight) for flight in flight_data["flights"]]
-                
+
         except Exception as e:
             logger.error("flight_search_error", error=str(e))
             raise

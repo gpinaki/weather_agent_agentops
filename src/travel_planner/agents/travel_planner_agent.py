@@ -6,7 +6,10 @@ from .flight_agent import FlightAgent
 from .hotel_agent import HotelAgent
 from ..schemas.models import TravelPlan, WeatherForecast, FlightOption, HotelOption, ServiceStatus
 from ..utils.logger import logger
+from agentops import track_agent
 
+
+@track_agent(name="TravelPlannerAgent")
 class TravelPlannerAgent(BaseAgent):
     def __init__(
         self,

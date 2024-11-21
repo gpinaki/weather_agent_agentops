@@ -132,6 +132,7 @@ cp .env.example .env
 # Edit .env with your API keys:
 # OPENAI_API_KEY=your_openai_key
 # WEATHER_API_KEY=your_weather_api_key
+# AGENTOPS_API_KEY=your_agentops_api_key
 ```
 
 ## Usage 💻
