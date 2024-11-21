@@ -5,14 +5,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List
-
 import plotly.express as px
-
 import streamlit as st
-
-# Add the src directory to Python path
-src_path = Path(__file__).parent.parent / "src"
-sys.path.append(str(src_path))
 
 from travel_planner.agents.flight_agent import FlightAgent
 from travel_planner.agents.hotel_agent import HotelAgent
@@ -21,6 +15,12 @@ from travel_planner.agents.weather_agent import WeatherAgent
 from travel_planner.config import get_settings
 from travel_planner.utils.exceptions import (CityValidationError, ServiceError,
                                              WeatherServiceError)
+
+import agentops
+
+# Add the src directory to Python path
+src_path = Path(__file__).parent.parent / "src"
+sys.path.append(str(src_path))
 
 # Weather icons mapping
 WEATHER_ICONS = {
@@ -136,45 +136,6 @@ def format_hotel_card(hotel):
         for amenity in hotel.amenities:
             icon = next((v for k, v in amenities_icons.items() if k in amenity.lower()), "•")
             st.write(f"{icon} {amenity}")
-
-def show_analytics(plan):
-    """Show analytics for flights and hotels."""
-    st.subheader("📊 Analytics")
-    
-    tab1, tab2 = st.tabs(["Flight Analytics", "Hotel Analytics"])
-    
-    with tab1:
-        if plan.flight_options:
-            # Flight price comparison
-            fig_flights = px.bar(
-                x=[f"{f.departure_time}" for f in plan.flight_options],
-                y=[f.price for f in plan.flight_options],
-                title="Flight Prices by Departure Time",
-                labels={"x": "Departure Time", "y": "Price ($)"}
-            )
-            st.plotly_chart(fig_flights, use_container_width=True)
-            
-            # Flight statistics
-            col1, col2, col3 = st.columns(3)
-            prices = [f.price for f in plan.flight_options]
-            with col1:
-                st.metric("Average Flight Price", f"${sum(prices)/len(prices):,.2f}")
-            with col2:
-                st.metric("Lowest Price", f"${min(prices):,.2f}")
-            with col3:
-                st.metric("Highest Price", f"${max(prices):,.2f}")
-    
-    with tab2:
-        if plan.hotel_options:
-            # Hotel price vs rating scatter plot
-            fig_hotels = px.scatter(
-                x=[h.rating for h in plan.hotel_options],
-                y=[h.price_per_night for h in plan.hotel_options],
-                text=[h.name for h in plan.hotel_options],
-                title="Hotel Price vs Rating",
-                labels={"x": "Rating", "y": "Price per Night ($)"}
-            )
-            st.plotly_chart(fig_hotels, use_container_width=True)
 
 def show_search_history():
     """Display search history in a collapsible section."""
@@ -395,10 +356,5 @@ def main():
                         if error_msg:
                             st.warning(f"⚠️ {service.title()}: {error_msg}")
                 
-                # Show analytics if we have data
-                if plan.flight_options or plan.hotel_options:
-                    st.markdown("---")
-                    show_analytics(plan)
-
 if __name__ == "__main__":
     main()
