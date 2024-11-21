@@ -1,0 +1,1016 @@
+I want to use agentops and monitor my agents.
+I want to add minimum lines of code in my agent application. '
+
+
+here is current project structure, python files and code base. Before you start suggesting tell me you understand the code fullly.
+You need to refer agentops documentation link:
+######## Helpful Instruction  ################
+#### Following instruction is from agentops, feel free to use it or suggest if you have a better suggestion 
+This is an example of how to use the AgentOps library for basic Agent monitoring with OpenAI’s GPT
+
+1. First let’s install the required packages
+%pip install -U agentops
+2. Then import them
+import agentops
+
+3. Create an environment variable in a .env file or other method. By default, the AgentOps init() function will look for an environment variable named AGENTOPS_API_KEY. Or…
+
+Replace <your_agentops_key> below and pass in the optional api_key parameter to the AgentOps init(api_key=...) function. Remember not to commit your API key to a public repo!
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or "<your_openai_key>"
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") or "<your_agentops_key>"
+The AgentOps library is designed to be a plug-and-play replacement for the OpenAI Client, maximizing use with minimal install effort.
+
+
+openai = OpenAI(api_key=OPENAI_API_KEY)
+agentops.init(AGENTOPS_API_KEY, default_tags=["openai-gpt-notebook"])
+Now just use OpenAI as you would normally!
+
+​
+4. Single Session with ChatCompletion
+
+message = [{"role": "user", "content": "Write a 12 word poem about secret agents."}]
+response = openai.chat.completions.create(
+    model="gpt-3.5-turbo", messages=message, temperature=0.5, stream=False
+)
+print(response.choices[0].message.content)
+
+5. Make sure to end your session with a Result (Success|Fail|Indeterminate) for better tracking
+agentops.end_session("Success")
+
+6. Now if you check the AgentOps dashboard, you should see information related to this run!
+Additionally, you can track custom events via AgentOps. Let’s start a new session and record some events
+
+# Create new session
+agentops.start_session(tags=["openai-gpt-notebook-events"])
+The easiest way to record actions is through the use of AgentOps’ decorators
+from agentops import record_action
+@record_action("add numbers")
+def add(x, y):
+    return x + y
+
+add(2, 4)
+We can also manually craft an event exactly the way we want
+
+from agentops import ActionEvent
+
+message = ({"role": "user", "content": "Hello"},)
+response = openai.chat.completions.create(
+    model="gpt-3.5-turbo", messages=message, temperature=0.5
+)
+
+if "hello" in str(response.choices[0].message.content).lower():
+    agentops.record(
+        ActionEvent(
+            action_type="Agent says hello",
+            params=str(message),
+            returns=str(response.choices[0].message.content),
+        )
+    )
+
+agentops.end_session("Success")
+
+########### Helpful instruction ends from agentops website#######################
+
+
+Goal:
+1. Use helpful instruction as guide or reference, but use best practices, and recommend if you see any issue. Don't follow blindly.  
+2.Show me the exact places where to add agentops - use minimal change 
+3. recommend me a few improvements if any after I'm able to test the basic things to have better observability in the application
+4. If you need more information please ask 
+Remmember I've basic knowldge in python and agents so go step by step, so that I learn.
+
+
+########### My actual project strcuture and code that you have to review and update ###########
+travel_planner/
+├── src/
+│   └── travel_planner/
+│       ├── __init__.py
+│       ├── config.py              # Settings configuration
+│       ├── agents/
+│       │   ├── __init__.py
+│       │   ├── base.py           # BaseAgent class
+│       │   ├── weather_agent.py
+│       │   ├── flight_agent.py
+│       │   ├── hotel_agent.py
+│       │   └── travel_planner_agent.py
+│       ├── schemas/
+│       │   ├── __init__.py
+│       │   └── models.py         # Pydantic models
+│       └── utils/
+│           ├── __init__.py
+│           ├── logger.py          # Logging configuration
+│           ├── validators.py      # City validation
+│           └── exceptions.py      # Custom exceptions
+├── streamlit/
+│   └── app.py                    # Streamlit UI
+└── requirements.txt
+
+Key Files and Their Purposes:
+
+1. Configuration:
+config.py: Contains settings using Pydantic
+.env: (not shown) Contains environment variables
+
+2. Core Agents:
+base.py: Abstract base class for all agents
+weather_agent.py: Weather service integration
+flight_agent.py: Flight search using OpenAI
+hotel_agent.py: Hotel search using OpenAI
+travel_planner_agent.py: Main orchestrator
+
+3. Utilities:
+logger.py: Logging setup
+validators.py: Input validation
+exceptions.py: Custom error types
+
+4. Models:
+models.py: Data models for weather, flights, hotels, etc.
+
+5. UI:
+app.py: Streamlit web Interface
+
+Important Environment Variables:
+WEATHER_API_KEY=<your_key>
+OPENAI_API_KEY=<your_key>
+AGENTOPS_API_KEY=<your_key>
+ENVIRONMENT=development
+
+Below is the codebase
+
+# config.py
+
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    openai_api_key: str
+    weather_api_key: str
+    environment: str = "development"
+    weather_api_base_url: str = "http://api.weatherapi.com/v1"
+    openai_model: str = "gpt-4-turbo-preview"
+    agentops_api_key: str
+
+    class Config:
+        env_file = ".env"
+
+@lru_cache()
+def get_settings():
+    return Settings()
+
+##############################################################
+#base.py: 
+
+from abc import ABC, abstractmethod
+from typing import Any
+
+class BaseAgent(ABC):
+    """
+    Base class for all agents in the travel planner system.
+    """
+    @abstractmethod
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Execute the agent's main functionality.
+        
+        Args:
+            *args: Variable length argument list
+            **kwargs: Arbitrary keyword arguments
+            
+        Returns:
+            Any: The result of the agent's execution
+        """
+        pass
+
+##############################################################
+#weather_agent.py: 
+
+from .base import BaseAgent
+import requests
+from ..schemas.models import WeatherForecast
+from ..config import get_settings
+from ..utils.logger import logger
+from ..utils.validators import CityValidator
+from ..utils.exceptions import CityValidationError, ServiceError
+
+class WeatherAgent(BaseAgent):
+    def __init__(self):
+        self.settings = get_settings()
+        self.api_key = self.settings.weather_api_key
+        self.base_url = self.settings.weather_api_base_url
+        self.city_validator = CityValidator(self.api_key)
+        
+        if not self.api_key or self.api_key == "your_weather_api_key":
+            raise ValueError("Weather API key not found in environment variables")
+    
+    async def execute(self, destination: str, date: str) -> WeatherForecast:
+        try:
+            # First validate the city
+            is_valid, validated_city = await self.city_validator.validate_city(destination)
+            
+            if not is_valid:
+                raise CityValidationError(f"'{destination}' is not a valid city name. Please check the spelling and try again.")
+
+            endpoint = f"{self.base_url}/current.json"
+            params = {
+                "key": self.api_key,
+                "q": validated_city  # Use the validated city name
+            }
+            
+            logger.info("calling_weather_api", 
+                       destination=validated_city,
+                       endpoint=endpoint)
+            
+            response = requests.get(endpoint, params=params)
+            
+            if response.status_code != 200:
+                raise ServiceError(f"Weather service error (Status: {response.status_code})")
+            
+            data = response.json()
+            
+            if "current" not in data:
+                raise ServiceError("Invalid response from Weather API")
+            
+            current = data["current"]
+            condition = current.get("condition", {})
+            
+            return WeatherForecast(
+                temperature=current.get("temp_c", 0.0),
+                condition=condition.get("text", "Unknown"),
+                precipitation_chance=current.get("precip_mm", 0.0)
+            )
+                
+        except CityValidationError as e:
+            logger.warning(f"Invalid city: {destination}", error=str(e))
+            raise
+        except requests.exceptions.ConnectionError:
+            raise ServiceError("Unable to connect to weather service. Please check your internet connection.")
+        except requests.exceptions.Timeout:
+            raise ServiceError("Weather service request timed out. Please try again.")
+        except Exception as e:
+            logger.error("weather_api_error", error=str(e))
+            raise ServiceError("An unexpected error occurred while fetching weather data.")
+
+##############################################################
+#flight_agent.py: Flight search using OpenAI
+from .base import BaseAgent
+from openai import AsyncOpenAI
+from typing import List
+from ..schemas.models import FlightOption
+from ..config import get_settings
+from ..utils.logger import logger
+from ..utils.validators import CityValidator
+import json
+
+class FlightAgent(BaseAgent):
+    def __init__(self):
+        self.settings = get_settings()
+        self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+        self.city_validator = CityValidator(self.settings.weather_api_key)
+    
+    async def execute(self, origin: str, destination: str, date: str) -> List[FlightOption]:
+        try:
+            # Validate cities first
+            origin_valid, origin_msg = await self.city_validator.validate_city(origin)
+            dest_valid, dest_msg = await self.city_validator.validate_city(destination)
+
+            if not origin_valid or not dest_valid:
+                error_msg = []
+                if not origin_valid:
+                    error_msg.append(f"Invalid origin city: {origin}")
+                if not dest_valid:
+                    error_msg.append(f"Invalid destination city: {destination}")
+                raise ValueError(" && ".join(error_msg))
+
+            # Use validated city names
+            origin = origin_msg
+            destination = dest_msg
+
+            system_prompt = """You are a flight search assistant. 
+            IMPORTANT: Generate realistic flight options based on these rules:
+            1. Flight durations should be realistic based on distance
+            2. Prices should be realistic for the route
+            3. Number of stops should make sense for the distance
+            4. Early morning and late evening flights are more common
+            5. Prices should vary based on time of day
+            
+            Provide flight options in JSON format with the following structure:
+            {
+                "flights": [
+                    {
+                        "departure_time": "HH:MM",
+                        "arrival_time": "HH:MM",
+                        "price": float,
+                        "stops": integer
+                    }
+                ]
+            }"""
+
+            response = await self.client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Find flights from {origin} to {destination} on {date}. If this route is not realistic or cities are too small for direct flights, respond with empty flights array."}
+                ],
+                response_format={"type": "json_object"}
+            )
+            
+            flight_data = json.loads(response.choices[0].message.content)
+            
+            if not flight_data.get("flights"):
+                logger.info(f"No flights found for route: {origin} to {destination}")
+                return []
+                
+            return [FlightOption(**flight) for flight in flight_data["flights"]]
+                
+        except Exception as e:
+            logger.error("flight_search_error", error=str(e))
+            raise
+
+##############################################################
+
+#hotel_agent.py: Hotel search using OpenAI
+
+from .base import BaseAgent
+from openai import AsyncOpenAI
+from typing import List
+from ..schemas.models import HotelOption
+from ..config import get_settings
+from ..utils.logger import logger
+from ..utils.validators import CityValidator
+import json
+
+class HotelAgent(BaseAgent):
+    def __init__(self):
+        self.settings = get_settings()
+        self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+        self.city_validator = CityValidator(self.settings.weather_api_key)
+    
+    async def execute(self, city: str, date: str) -> List[HotelOption]:
+        try:
+            # Validate city first
+            is_valid, validated_city = await self.city_validator.validate_city(city)
+            
+            if not is_valid:
+                raise ValueError(f"Invalid city: {city}")
+
+            # Use validated city name
+            city = validated_city
+
+            system_prompt = """You are a hotel recommendation assistant. 
+            IMPORTANT: Generate realistic hotel options based on these rules:
+            1. Only suggest hotels for cities that actually exist
+            2. Prices should reflect the city's cost of living
+            3. Ratings should be realistic (not all hotels are 5-star)
+            4. Location descriptions should be specific to the city
+            5. Amenities should be realistic for the hotel's rating
+            
+            Provide hotel options in JSON format with the following structure:
+            {
+                "hotels": [
+                    {
+                        "name": "Hotel Name",
+                        "rating": float (1-5),
+                        "price_per_night": float,
+                        "location": "area in city",
+                        "amenities": ["amenity1", "amenity2", ...]
+                    }
+                ]
+            }"""
+
+            response = await self.client.chat.completions.create(
+                model=self.settings.openai_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Find hotels in {city} for stay on {date}. If this city is too small or not suitable for tourism, respond with empty hotels array."}
+                ],
+                response_format={"type": "json_object"}
+            )
+            
+            hotel_data = json.loads(response.choices[0].message.content)
+            
+            if not hotel_data.get("hotels"):
+                logger.info(f"No hotels found for city: {city}")
+                return []
+                
+            return [HotelOption.from_api_response(hotel) for hotel in hotel_data["hotels"]]
+                
+        except Exception as e:
+            logger.error("hotel_search_error", error=str(e))
+            raise
+##############################################################
+
+#travel_planner_agent.py: Main orchestrator
+
+from typing import Optional, List
+import asyncio
+from .base import BaseAgent
+from .weather_agent import WeatherAgent
+from .flight_agent import FlightAgent
+from .hotel_agent import HotelAgent
+from ..schemas.models import TravelPlan, WeatherForecast, FlightOption, HotelOption, ServiceStatus
+from ..utils.logger import logger
+
+class TravelPlannerAgent(BaseAgent):
+    def __init__(
+        self,
+        weather_agent: WeatherAgent,
+        flight_agent: FlightAgent,
+        hotel_agent: HotelAgent
+    ):
+        self.weather_agent = weather_agent
+        self.flight_agent = flight_agent
+        self.hotel_agent = hotel_agent
+
+    async def execute(
+        self,
+        origin: str,
+        destination: str,
+        date: str
+    ) -> TravelPlan:
+        try:
+            # Execute all agents concurrently
+            weather_task = self.weather_agent.execute(destination, date)
+            flights_task = self.flight_agent.execute(origin, destination, date)
+            hotels_task = self.hotel_agent.execute(destination, date)
+
+            results = await asyncio.gather(
+                weather_task, flights_task, hotels_task,
+                return_exceptions=True
+            )
+
+            service_statuses = {
+                "weather": ServiceStatus(),
+                "flights": ServiceStatus(),
+                "hotels": ServiceStatus()
+            }
+
+            # Process weather result
+            if isinstance(results[0], Exception):
+                service_statuses["weather"].error = str(results[0])
+                weather_forecast = WeatherForecast()
+            else:
+                service_statuses["weather"].status = True
+                weather_forecast = results[0]
+
+            # Process flight result
+            if isinstance(results[1], Exception):
+                service_statuses["flights"].error = str(results[1])
+                flight_options = []
+            else:
+                service_statuses["flights"].status = True
+                flight_options = results[1]
+
+            # Process hotel result
+            if isinstance(results[2], Exception):
+                service_statuses["hotels"].error = str(results[2])
+                hotel_options = []
+            else:
+                service_statuses["hotels"].status = True
+                hotel_options = results[2]
+
+            # Create travel plan
+            plan = TravelPlan(
+                weather_forecast=weather_forecast,
+                flight_options=flight_options,
+                hotel_options=hotel_options,
+                service_status=service_statuses
+            )
+
+            return plan
+
+        except Exception as e:
+            logger.error("trip_planning_error", error=str(e))
+            raise
+##############################################################
+#logger.py: Logging setup
+
+import structlog
+logger = structlog.get_logger()
+##############################################################
+#validators.py: Input validation
+
+import requests
+from typing import Tuple, Optional
+from ..utils.logger import logger
+
+class CityValidator:
+    def __init__(self, weather_api_key: str):
+        self.api_key = weather_api_key
+        self.base_url = "http://api.weatherapi.com/v1"
+        self.valid_cities_cache = {}  # Cache validation results
+
+    async def validate_city(self, city: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate if a city exists using WeatherAPI.
+        Returns (is_valid, error_message)
+        """
+        if city in self.valid_cities_cache:
+            return self.valid_cities_cache[city], None
+
+        try:
+            # Use weather API to validate city
+            response = requests.get(
+                f"{self.base_url}/current.json",
+                params={
+                    "key": self.api_key,
+                    "q": city
+                }
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                validated_city = f"{data['location']['name']}, {data['location']['country']}"
+                self.valid_cities_cache[city] = True
+                return True, validated_city
+            else:
+                error_msg = f"Invalid city: {city}"
+                self.valid_cities_cache[city] = False
+                return False, error_msg
+
+        except Exception as e:
+            logger.error(f"City validation error: {str(e)}")
+            return False, f"Error validating city: {str(e)}"
+
+##############################################################
+#exceptions.py: Custom error types
+class CityValidationError(Exception):
+    """Raised when a city cannot be validated"""
+    pass
+
+class ServiceError(Exception):
+    """Base class for service-related errors"""
+    pass
+
+class WeatherServiceError(ServiceError):
+    """Raised when weather service fails"""
+    pass
+
+class FlightServiceError(ServiceError):
+    """Raised when flight service fails"""
+    pass
+
+class HotelServiceError(ServiceError):
+    """Raised when hotel service fails"""
+    pass
+
+
+##############################################################
+##models.py:
+
+from pydantic import BaseModel, Field
+from datetime import datetime
+from typing import List, Optional, Dict
+
+class WeatherForecast(BaseModel):
+    """Weather forecast data model."""
+    temperature: float = Field(default=0.0, description="Current temperature in Celsius")
+    condition: str = Field(default="Unknown", description="Weather condition description")
+    precipitation_chance: float = Field(default=0.0, description="Precipitation in millimeters")
+
+class FlightOption(BaseModel):
+    """Flight option data model."""
+    departure_time: str = Field(..., description="Departure time in HH:MM format")
+    arrival_time: str = Field(..., description="Arrival time in HH:MM format")
+    price: float = Field(..., description="Flight price in USD")
+    stops: int = Field(default=0, description="Number of stops")
+
+class HotelOption(BaseModel):
+    """Hotel option data model."""
+    name: str = Field(..., description="Name of the hotel")
+    rating: float = Field(
+        ...,
+        description="Hotel rating from 1-5",
+        ge=1,  # greater than or equal to 1
+        le=5   # less than or equal to 5
+    )
+    price_per_night: float = Field(..., description="Price per night in USD")
+    location: str = Field(..., description="Location/area within the city")
+    amenities: List[str] = Field(
+        default_factory=list,
+        description="List of available amenities"
+    )
+
+    @classmethod
+    def from_api_response(cls, data: dict):
+        """Create HotelOption from API response data."""
+        try:
+            rating = float(data.get('rating', 0))
+            rating = max(1, min(5, rating))
+            
+            price_str = str(data.get('price_per_night', '0'))
+            price = float(price_str.replace('$', '').replace(',', ''))
+            
+            amenities = data.get('amenities', [])
+            if isinstance(amenities, str):
+                amenities = [a.strip() for a in amenities.split(',')]
+            
+            return cls(
+                name=data.get('name', 'Unknown Hotel'),
+                rating=rating,
+                price_per_night=price,
+                location=data.get('location', 'Location not specified'),
+                amenities=amenities
+            )
+        except Exception as e:
+            print(f"Error parsing hotel data: {e}")
+            print(f"Raw data: {data}")
+            raise
+
+class ServiceStatus(BaseModel):
+    """Status information for a service."""
+    status: bool = Field(default=False, description="Whether the service is working")
+    error: Optional[str] = Field(default=None, description="Error message if service failed")
+
+class TravelPlan(BaseModel):
+    """Complete travel plan combining all components."""
+    weather_forecast: WeatherForecast = Field(default_factory=WeatherForecast)
+    flight_options: List[FlightOption] = Field(default_factory=list)
+    hotel_options: List[HotelOption] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+    service_status: Dict[str, ServiceStatus] = Field(
+        default_factory=lambda: {
+            "weather": ServiceStatus(),
+            "flights": ServiceStatus(),
+            "hotels": ServiceStatus()
+        }
+    )
+
+    class Config:
+        """Model configuration."""
+        arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+##############################################################
+
+app.py:
+
+import asyncio
+import json
+import os
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List
+import plotly.express as px
+import streamlit as st
+
+from travel_planner.agents.flight_agent import FlightAgent
+from travel_planner.agents.hotel_agent import HotelAgent
+from travel_planner.agents.travel_planner_agent import TravelPlannerAgent
+from travel_planner.agents.weather_agent import WeatherAgent
+from travel_planner.config import get_settings
+from travel_planner.utils.exceptions import (CityValidationError, ServiceError,
+                                             WeatherServiceError)
+
+import agentops
+
+# Add the src directory to Python path
+src_path = Path(__file__).parent.parent / "src"
+sys.path.append(str(src_path))
+
+# Weather icons mapping
+WEATHER_ICONS = {
+    "clear": "☀️",
+    "sunny": "☀️",
+    "partly cloudy": "⛅",
+    "cloudy": "☁️",
+    "overcast": "☁️",
+    "mist": "🌫️",
+    "fog": "🌫️",
+    "rain": "🌧️",
+    "light rain": "🌧️",
+    "heavy rain": "⛈️",
+    "snow": "🌨️",
+    "sleet": "🌨️",
+    "thunderstorm": "⛈️"
+}
+
+def get_weather_icon(condition: str) -> str:
+    """Get weather icon based on condition description."""
+    condition_lower = condition.lower()
+    for key, icon in WEATHER_ICONS.items():
+        if key in condition_lower:
+            return icon
+    return "🌤️"  # default icon
+
+def init_session_state():
+    """Initialize session state variables."""
+    if 'settings' not in st.session_state:
+        st.session_state.settings = get_settings()
+    if 'search_history' not in st.session_state:
+        st.session_state.search_history = []
+    if 'last_search' not in st.session_state:
+        st.session_state.last_search = None
+
+def initialize_agents():
+    """Initialize travel planning agents."""
+    try:
+        weather_agent = WeatherAgent()
+        flight_agent = FlightAgent()
+        hotel_agent = HotelAgent()
+        travel_planner = TravelPlannerAgent(
+            weather_agent=weather_agent,
+            flight_agent=flight_agent,
+            hotel_agent=hotel_agent
+        )
+        return travel_planner
+    except Exception as e:
+        st.error(f"Failed to initialize agents: {str(e)}")
+        return None
+
+def format_weather_card(weather_data):
+    """Format weather information with icons and metrics."""
+    if weather_data:
+        icon = get_weather_icon(weather_data.condition)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(
+                label=f"{icon} Temperature",
+                value=f"{weather_data.temperature}°C",
+                delta=f"{weather_data.precipitation_chance}mm precipitation"
+            )
+        with col2:
+            st.info(f"Condition: {weather_data.condition}")
+    else:
+        st.error("Weather data unavailable")
+
+def format_flight_card(flight):
+    """Format flight information with pricing and details."""
+    try:
+        price_display = f"${flight.price:,.2f}" if flight.price else "Price not available"
+    except:
+        price_display = "Price not available"
+
+    with st.expander(f"✈️ Flight: {flight.departure_time} - {price_display}"):
+        if flight.departure_time:
+            st.write(f"🛫 Departure: {flight.departure_time}")
+        if flight.arrival_time:
+            st.write(f"🛬 Arrival: {flight.arrival_time}")
+        st.write(f"💰 Price: {price_display}")
+        st.write(f"🛑 Stops: {flight.stops}")
+
+def format_hotel_card(hotel):
+    """Format hotel information with rating and amenities."""
+    try:
+        price_display = f"${hotel.price_per_night:,.2f}/night"
+    except:
+        price_display = "Price not available"
+
+    with st.expander(f"🏨 {hotel.name} - {price_display}"):
+        # Rating stars
+        st.write("⭐" * int(hotel.rating))
+        
+        # Location with map emoji
+        st.write(f"📍 Location: {hotel.location}")
+        
+        # Price
+        st.write(f"💰 Price: {price_display}")
+        
+        # Amenities with icons
+        amenities_icons = {
+            "pool": "🏊‍♂️",
+            "wifi": "📶",
+            "restaurant": "🍽️",
+            "gym": "💪",
+            "spa": "💆‍♂️",
+            "parking": "🅿️",
+            "bar": "🍸"
+        }
+        
+        st.write("✨ Amenities:")
+        for amenity in hotel.amenities:
+            icon = next((v for k, v in amenities_icons.items() if k in amenity.lower()), "•")
+            st.write(f"{icon} {amenity}")
+
+def show_search_history():
+    """Display search history in a collapsible section."""
+    if st.session_state.search_history:
+        with st.expander("🕒 Search History"):
+            for search in reversed(st.session_state.search_history[-5:]):  # Show last 5 searches
+                st.write(
+                    f"🔍 {search['origin']} → {search['destination']} "
+                    f"on {search['date']} "
+                    f"({search['timestamp'].strftime('%H:%M:%S')})"
+                )
+
+async def get_travel_plan(travel_planner, origin, destination, date):
+    """Get travel plan with error handling."""
+    try:
+        with st.spinner('Getting travel information...'):
+            plan = await travel_planner.execute(
+                origin=origin,
+                destination=destination,
+                date=date
+            )
+            # Handle empty plan case
+            if not plan:
+                st.warning("Unable to get travel information. Please try again.")
+                return None
+                
+            # Check if any service has validation errors
+            validation_errors = [
+                (service, status.error) 
+                for service, status in plan.service_status.items()
+                if status.error and "not a valid city" in status.error
+            ]
+            
+            if validation_errors:
+                for service, error in validation_errors:
+                    show_error_message(error, service)
+                return None
+            return plan
+        
+    except Exception as e:
+        st.error("Unable to process your request")
+        st.info("💡 Please try again later")
+        return None
+    
+
+def show_error_message(error_msg: str, service_type: str):
+    """Display formatted error message with appropriate icon and suggestion."""
+    if "not a valid city" in error_msg:
+        st.error("🌍 " + error_msg)
+        st.markdown("""
+        **💡 Tips for entering city names:**
+        - Use complete city names (e.g., 'Los Angeles' not 'LA')
+        - For common city names, add country (e.g., 'Paris, France')
+        - Check spelling carefully
+        - Avoid abbreviations or local names
+        """)
+    elif "connection" in error_msg.lower():
+        st.error("🌐 " + error_msg)
+        st.info("💡 Please check your internet connection and try again")
+    else:
+        st.error("⚠️ " + error_msg)
+        st.info("💡 Please try again later")
+
+def main():
+    st.set_page_config(
+        page_title="Travel Planner Agent",
+        page_icon="✈️",
+        layout="wide"
+    )
+
+    st.title("✈️ Travel Planner Agent")
+    st.markdown("""
+    Plan your perfect trip with real-time weather, flights, and hotel information.
+    """)
+# Initialize session state
+    init_session_state()
+    
+    # Show search history
+    show_search_history()
+    
+    # Create columns for input
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        origin = st.text_input("🛫 Origin City", "San Francisco")
+    with col2:
+        destination = st.text_input("🛬 Destination City", "New York")
+    with col3:
+        min_date = datetime.now().date()
+        max_date = min_date + timedelta(days=365)
+        date = st.date_input(
+            "📅 Travel Date",
+            min_value=min_date,
+            max_value=max_date,
+            value=min_date + timedelta(days=7)
+        )
+
+    if st.button("🔍 Search Travel Options", type="primary"):
+        travel_planner = initialize_agents()
+        if travel_planner:
+            plan = asyncio.run(get_travel_plan(
+                travel_planner,
+                origin,
+                destination,
+                date.strftime("%Y-%m-%d")
+            ))
+            
+            if plan:
+                # Add to search history
+                st.session_state.search_history.append({
+                    'origin': origin,
+                    'destination': destination,
+                    'date': date,
+                    'timestamp': datetime.now()
+                })
+                st.session_state.last_search = plan
+                
+                # Display results in tabs
+                tab1, tab2, tab3 = st.tabs(["Weather", "Flights", "Hotels"])
+                
+                with tab1:
+                    weather_status = plan.service_status["weather"]
+                    if weather_status.status:  # Access as property, not dict
+                        st.subheader(f"🌤️ Weather in {destination}")
+                        format_weather_card(plan.weather_forecast)
+                    else:
+                        if weather_status.error:  # Access as property
+                            show_error_message(weather_status.error, "weather")
+                        else:
+                            st.error("Weather service is temorarily unavailable")
+                
+                with tab2:
+                    flight_status = plan.service_status["flights"]
+                    if flight_status.status:  # Access as property
+                        st.subheader("✈️ Flight Options")
+                        if plan.flight_options:
+                            # Price filter for flights
+                            max_price = max(f.price for f in plan.flight_options)
+                            price_filter = st.slider(
+                                "Filter by maximum flight price ($)",
+                                min_value=0,
+                                max_value=int(max_price),
+                                value=int(max_price)
+                            )
+                            
+                            filtered_flights = [f for f in plan.flight_options if f.price <= price_filter]
+                            if filtered_flights:
+                                for flight in filtered_flights:
+                                    format_flight_card(flight)
+                            else:
+                                st.info("No flights found within the selected price range")
+                        else:
+                            st.info(f"No flights found between {origin} and {destination}")
+                    else:
+                        if flight_status.error:  # Access as property
+                            if "Invalid city" in flight_status.error:
+                                st.error(f"❌ {flight_status.error}")
+                            else:
+                                st.error("⚠️ Flight information is temporarily unavailable")
+                                st.info(f"Details: {flight_status.error}")
+                        else:
+                            st.error("Flight service is unavailable")
+                
+                with tab3:
+                    hotel_status = plan.service_status["hotels"]
+                    if hotel_status.status:  # Access as property
+                        st.subheader("🏨 Hotel Options")
+                        if plan.hotel_options:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                max_hotel_price = max(h.price_per_night for h in plan.hotel_options)
+                                price_filter = st.slider(
+                                    "Filter by maximum price per night ($)",
+                                    min_value=0,
+                                    max_value=int(max_hotel_price),
+                                    value=int(max_hotel_price)
+                                )
+                            with col2:
+                                min_rating = st.select_slider(
+                                    "Minimum Rating",
+                                    options=[1, 2, 3, 4, 5],
+                                    value=1
+                                )
+                            
+                            filtered_hotels = [
+                                h for h in plan.hotel_options 
+                                if h.price_per_night <= price_filter and h.rating >= min_rating
+                            ]
+                            
+                            if filtered_hotels:
+                                for hotel in filtered_hotels:
+                                    format_hotel_card(hotel)
+                            else:
+                                st.info("No hotels found matching your criteria")
+                        else:
+                            st.info(f"No hotels found in {destination}")
+                    else:
+                        if hotel_status.error:  # Access as property
+                            if "Invalid city" in hotel_status.error:
+                                st.error(f"❌ {hotel_status.error}")
+                            else:
+                                st.error("⚠️ Hotel information is temporarily unavailable")
+                                st.info(f"Details: {hotel_status.error}")
+                        else:
+                            st.error("Hotel service is unavailable")
+                
+                # Show overall status for failed services
+                failed_services = [
+                    service for service, status in plan.service_status.items() 
+                    if not status.status  # Access as property
+                ]
+                
+                if failed_services:
+                    st.markdown("---")
+                    st.error("Some services encountered errors:")
+                    for service in failed_services:
+                        error_msg = plan.service_status[service].error  # Access as property
+                        if error_msg:
+                            st.warning(f"⚠️ {service.title()}: {error_msg}")
+                
+if __name__ == "__main__":
+    main()
+
+##############################################################
+
+
+
