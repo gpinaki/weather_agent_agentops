@@ -6,7 +6,7 @@ from ..config import get_settings
 from ..utils.logger import logger
 from ..utils.validators import CityValidator
 import json
-from agentops import track_agent
+from agentops import track_agent, record_tool
 
 
 @track_agent(name="FlightAgent")
@@ -16,6 +16,7 @@ class FlightAgent(BaseAgent):
         self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         self.city_validator = CityValidator(self.settings.weather_api_key)
 
+    @record_tool(tool_name="execute")
     async def execute(self, origin: str, destination: str, date: str) -> List[FlightOption]:
         try:
             # Validate cities first

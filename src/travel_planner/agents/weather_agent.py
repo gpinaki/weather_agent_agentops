@@ -5,7 +5,7 @@ from ..config import get_settings
 from ..utils.logger import logger
 from ..utils.validators import CityValidator
 from ..utils.exceptions import CityValidationError, ServiceError
-from agentops import track_agent
+from agentops import track_agent, record_tool
 
 
 @track_agent(name="WeatherAgent")
@@ -20,6 +20,7 @@ class WeatherAgent(BaseAgent):
             raise ValueError(
                 "Weather API key not found in environment variables")
 
+    @record_tool(tool_name="execute")
     async def execute(self, destination: str, date: str) -> WeatherForecast:
         try:
             # First validate the city

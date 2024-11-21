@@ -6,7 +6,7 @@ from .flight_agent import FlightAgent
 from .hotel_agent import HotelAgent
 from ..schemas.models import TravelPlan, WeatherForecast, FlightOption, HotelOption, ServiceStatus
 from ..utils.logger import logger
-from agentops import track_agent
+from agentops import track_agent, record_tool
 
 
 @track_agent(name="TravelPlannerAgent")
@@ -21,6 +21,7 @@ class TravelPlannerAgent(BaseAgent):
         self.flight_agent = flight_agent
         self.hotel_agent = hotel_agent
 
+    @record_tool(tool_name="execute")
     async def execute(
         self,
         origin: str,
