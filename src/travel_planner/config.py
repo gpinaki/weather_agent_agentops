@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     weather_api_base_url: str = "http://api.weatherapi.com/v1"
     openai_model: str = "gpt-4-turbo-preview"
+    agentops_api_key: str
 
     class Config:
         env_file = ".env"
